@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Screen Operating Theater Clock Panel</title>
+    <style>
+        :root {
+            --panel-color: #e0e0e0;
+            --display-bg: #000000;
+            --led-color: #ff3333;
+            --text-dark: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--panel-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            padding: 3vh 5vw;
+            overflow: hidden;
+        }
+
+        .clock-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+        }
+
+        .clock-label {
+            font-weight: bold;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.3vw;
+            margin-bottom: 1vh;
+            font-size: 2rem;
+        }
+
+        /* LED Display scaled for full screen screen real estate */
+        .led-display {
+            background-color: var(--display-bg);
+            color: var(--led-color);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10vw; /* Responsive font scaling based on screen width */
+            font-weight: bold;
+            padding: 1.5vh 3vw;
+            border-radius: 12px;
+            letter-spacing: 0.5vw;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+            width: 100%;
+            max-width: 950px;
+            text-align: center;
+            line-height: 1;
+        }
+
+        /* Divider Line */
+        .divider {
+            border: 0;
+            border-top: 4px solid #b8b8b8;
+            width: 100%;
+            margin: 4vh 0;
+        }
+
+        /* Split lower clocks half and half */
+        .sub-clocks {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5vw;
+            flex-grow: 1;
+            align-items: flex-start;
+        }
+
+        .sub-clocks .led-display {
+            font-size: 7vw; /* Slightly smaller than the main real-time clock */
+            max-width: 100%;
+        }
+
+        .sub-clocks .clock-label {
+            font-size: 1.8rem;
+        }
+
+        /* Controls Area */
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            gap: 1.5vw;
+            margin-top: 2vh;
+            width: 100%;
+        }
+
+        button {
+            color: white;
+            border: none;
+            padding: 1.5vh 2.5vw;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        button:hover {
+            filter: brightness(0.85);
+        }
+
+        button.start { background-color: #2e7d32; }
+        button.stop { background-color: #c62828; }
+        button.reset { background-color: #ef6c00; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Real-time Clock -->
+    <div class="clock-section" style="height: 35vh;">
+        <div class="clock-label">Time</div>
+        <div class="led-display" id="realtime-clock">00:00:00</div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="sub-clocks">
+        <!-- 2. Operating Time Clock -->
+        <div class="clock-section">
+            <div class="clock-label">Operating Time</div>
+            <div class="led-display" id="op-display">00:00:00</div>
+            <div class="controls-row">
+                <button class="start" onclick="startTimer('op')">Start</button>
+                <button class="stop" onclick="stopTimer('op')">Stop</button>
+                <button class="reset" onclick="resetTimer('op')">Reset</button>
+            </div>
+        </div>
+
+        <!-- 3. Anaesthesia Time Clock -->
+        <div class="clock-section">
+            <div class="clock-label">Anaesthesia Time</div>
+            <div class="led-display" id="anes-display">00:00:00</div>
+            <div class="controls-row">
+                <button class="start" onclick="startTimer('anes')">Start</button>
+                <button class="stop" onclick="stopTimer('anes')">Stop</button>
+                <button class="reset" onclick="resetTimer('anes')">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Real-time Clock Logic ---
+        function updateRealTime() {
+            const now = new Date();
+            const hrs = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const secs = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('realtime-clock').textContent = `${hrs}:${mins}:${secs}`;
+        }
+        setInterval(updateRealTime, 1000);
+        updateRealTime();
+
+        // --- Stopwatch Logic ---
+        const timers = {
+            op: { elapsed: 0, interval: null, displayId: 'op-display' },
+            anes: { elapsed: 0, interval: null, displayId: 'anes-display' }
+        };
+
+        function formatTime(totalSeconds) {
+            const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(totalSeconds % 60).padStart(2, '0');
+            return `${hrs}:${mins}:${secs}`;
+        }
+
+        function startTimer(type) {
+            if (timers[type].interval) return;
+
+            timers[type].interval = setInterval(() => {
+                timers[type].elapsed++;
+                document.getElementById(timers[type].displayId).textContent = formatTime(timers[type].elapsed);
+            }, 1000);
+        }
+
+        function stopTimer(type) {
+            clearInterval(timers[type].interval);
+            timers[type].interval = null;
+        }
+
+        function resetTimer(type) {
+            stopTimer(type);
+            timers[type].elapsed = 0;
+            document.getElementById(timers[type].displayId).textContent = "00:00:00";
+        }
+    </script>
+</body>
+</html>
